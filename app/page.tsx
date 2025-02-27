@@ -19,10 +19,13 @@ declare global {
 
 export default function Home() {
   const [samu, setSamu] = useState(0);
+  const [isTelegram, setIsTelegram] = useState(false);
 
   useEffect(() => {
-    if (window.Telegram?.WebApp) {
+    // 클라이언트에서만 실행되도록 체크
+    if (typeof window !== "undefined" && window.Telegram?.WebApp) {
       window.Telegram.WebApp.expand();
+      setIsTelegram(true); // 텔레그램 환경임을 체크
     }
 
     // MongoDB에서 데이터 불러오기
@@ -60,10 +63,10 @@ export default function Home() {
       </button>
 
       {/* 텔레그램에서 실행될 때만 "닫기" 버튼 표시 */}
-      {window.Telegram?.WebApp && (
+      {isTelegram && (
         <button
           className="mt-5 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-          onClick={() => window.Telegram?.WebApp.close()}
+          onClick={() => window.Telegram?.WebApp?.close()}
         >
           닫기
         </button>
