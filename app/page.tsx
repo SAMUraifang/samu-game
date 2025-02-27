@@ -2,14 +2,27 @@
 
 import { useState, useEffect } from "react";
 
+// Telegram WebApp 타입 정의
+interface TelegramWebApp {
+  WebApp: {
+    expand: () => void;
+    close: () => void;
+  };
+}
+
+// window.Telegram을 안전하게 사용하기 위해 타입 캐스팅
+declare global {
+  interface Window {
+    Telegram?: TelegramWebApp;
+  }
+}
+
 export default function Home() {
   const [samu, setSamu] = useState(0);
 
   useEffect(() => {
-    // 텔레그램 WebApp 확장 (텔레그램에서 실행될 경우만)
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      tg.expand();
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.expand();
     }
 
     // MongoDB에서 데이터 불러오기
@@ -47,10 +60,10 @@ export default function Home() {
       </button>
 
       {/* 텔레그램에서 실행될 때만 "닫기" 버튼 표시 */}
-      {(window as any).Telegram?.WebApp && (
+      {window.Telegram?.WebApp && (
         <button
           className="mt-5 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-          onClick={() => (window as any).Telegram.WebApp.close()}
+          onClick={() => window.Telegram?.WebApp.close()}
         >
           닫기
         </button>
