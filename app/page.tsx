@@ -7,8 +7,9 @@ export default function Home() {
 
   useEffect(() => {
     // 텔레그램 WebApp 확장 (텔레그램에서 실행될 경우만)
-    if (typeof window !== "undefined" && window.Telegram?.WebApp) {
-      window.Telegram.WebApp.expand();
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
     }
 
     // MongoDB에서 데이터 불러오기
@@ -46,10 +47,10 @@ export default function Home() {
       </button>
 
       {/* 텔레그램에서 실행될 때만 "닫기" 버튼 표시 */}
-      {typeof window !== "undefined" && window.Telegram?.WebApp && (
+      {(window as any).Telegram?.WebApp && (
         <button
           className="mt-5 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-          onClick={() => window.Telegram.WebApp.close()}
+          onClick={() => (window as any).Telegram.WebApp.close()}
         >
           닫기
         </button>
