@@ -39,4 +39,22 @@ export default function Home() {
       </button>
     </main>
   );
+
+  import { useEffect } from "react";
+
+export default function Home() {
+    useEffect(() => {
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.expand();
+        }
+    }, []);
+
+    return (
+        <div>
+            <h1>Welcome to Samu Game!</h1>
+            <button onClick={() => window.Telegram.WebApp.close()}>닫기</button>
+        </div>
+    );
+}
+
 }
