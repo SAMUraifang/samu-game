@@ -3,43 +3,15 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 
-// Telegram WebApp 타입 정의
-interface TelegramWebApp {
-  WebApp: {
-    expand: () => void;
-    close: () => void;
-    viewportHeight: number;
-    viewportStableHeight: number;
-  };
-}
-
-// window.Telegram을 안전하게 사용하기 위해 타입 캐스팅
-declare global {
-  interface Window {
-    Telegram?: TelegramWebApp;
-  }
-}
-
 export default function Home() {
   const [samu, setSamu] = useState<number | null>(null);
-  const [energy, setEnergy] = useState(8500); // 에너지 최대값 Notcoin처럼 8500으로 설정
-  const [isLoading, setIsLoading] = useState(true);
-  const [isTelegram, setIsTelegram] = useState(false);
-  const [viewportHeight, setViewportHeight] = useState(0); // Telegram 뷰포트 높이 상태
-  const [showPlusOne, setShowPlusOne] = useState(false); // "+1" 텍스트 표시 상태
-  const maxEnergy = 8500; // 에너지 최대값 (놉코인처럼 조정)
+  const [energy, setEnergy] = useState(8500);
+  const [isRaidTime, setIsRaidTime] = useState(false);
+  const [raidEnemy, setRaidEnemy] = useState("/meme1.png");
+  const [showPlusOne, setShowPlusOne] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.Telegram?.WebApp) {
-      window.Telegram.WebApp.expand();
-      setIsTelegram(true);
-      // Telegram WebApp 뷰포트 높이 설정 (상단/하단 패딩 고려)
-      const height = window.Telegram.WebApp.viewportStableHeight || window.innerHeight;
-      setViewportHeight(height - 104); // 상단 56px, 하단 48px 패딩 제거
-    } else {
-      // 웹 환경에서는 전체 화면 높이 사용
-      setViewportHeight(window.innerHeight);
-    }
+    const maxEnergy = 8500;
 
     const loadData = async () => {
       const userId = "6829222253";
@@ -47,145 +19,122 @@ export default function Home() {
       const data = await response.json();
       console.log("📢 서버에서 불러온 값:", data.samu);
 
-      if (data.samu !== undefined) {
-        setSamu(data.samu);
-      } else {
-        setSamu(0);
-      }
-      if (data.energy !== undefined) {
-        setEnergy(data.energy);
-      } else {
-        setEnergy(maxEnergy);
-      }
-      setIsLoading(false);
+      setSamu(data.samu ?? 0);
+      setEnergy(data.energy ?? maxEnergy);
     };
 
     loadData();
 
+    // 🔥 5초마다 에너지 회복 (최대 maxEnergy 초과 금지)
     const energyInterval = setInterval(() => {
-      setEnergy((prev) => Math.min(prev + 200, maxEnergy)); // 5초마다 에너지 200 회복
+      setEnergy((prev) => Math.min(prev + 200, maxEnergy));
     }, 5000);
+
     return () => clearInterval(energyInterval);
   }, []);
 
+  // 🔥 클릭 시 점수 증가 (+1 / +2 애니메이션 추가)
   const handleClick = async () => {
-    if (isLoading || samu === null || energy < 100) return;
+    if (samu === null || energy < 100) return;
 
     const userId = "6829222253";
-    const newSamu = Math.max(samu + 1, 1);
+    const bonus = isRaidTime ? 2 : 1;
+    const newSamu = samu + bonus;
     setSamu(newSamu);
-    setEnergy(energy - 100); // "Smash Dojo!" 클릭 시 에너지 100 소모
-    setShowPlusOne(true); // "+1" 텍스트 표시
+    setEnergy((prev) => prev - 100);
 
-    // 1초 후 "+1" 텍스트 숨김
-    setTimeout(() => setShowPlusOne(false), 1000);
+    setShowPlusOne(true);
+    setTimeout(() => setShowPlusOne(false), 1000); // 🔥 1초 후 서서히 사라지게
+
+    console.log("🔥 점수 증가:", newSamu);
 
     await fetch("/api/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, samu: newSamu, energy: energy - 100 }),
     });
-    console.log("Samu increased to:", newSamu);
   };
 
-  const handleBoost = async () => {
-    if (isLoading || samu === null || energy < 200) return;
+  // 🔥 Dojo Challenge 버튼 클릭 시 이벤트 트리거
+  const startDojoChallenge = () => {
+    setIsRaidTime(true);
+    const newRaidEnemy = Math.random() > 0.5 ? "/meme1.png" : "/meme2.png";
+    setRaidEnemy(newRaidEnemy);
+    console.log("🔥 Dojo Challenge 시작! 침입자:", newRaidEnemy);
 
-    const userId = "6829222253";
-    const newSamu = Math.max(samu + 10, 1);
-    setSamu(newSamu);
-    setEnergy(energy - 200); // "Boosts" 클릭 시 에너지 200 소모
-
-    await fetch("/api/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, samu: newSamu, }),
-    });
-    console.log("Samu boosted to:", newSamu);
+    setTimeout(() => {
+      setIsRaidTime(false);
+    }, 60000);
   };
-
-  if (isLoading) return <p>Loading...</p>;
 
   return (
     <main
-      className="flex flex-col items-center justify-between p-4 bg-cover bg-center"
+      className="flex flex-col items-center justify-between p-4 bg-cover bg-center relative"
       style={{
         backgroundImage: `url('/background.png')`,
-        backgroundRepeat: 'no-repeat',
-        minHeight: `${viewportHeight}px`, // Telegram 뷰포트 높이에 맞춤
-        maxWidth: '100%', // 모바일 너비 제한
+        backgroundRepeat: "no-repeat",
+        minHeight: "100vh",
+        maxWidth: "100%",
       }}
     >
-      {/* 상단: 점수 및 코인 (놉코인 상단 위치, 패딩 고려) */}
-      <div className="w-full text-center py-2 text-yellow-300">
-        <div className="flex items-center justify-center gap-2">
-          <p className="text-3xl font-bold">SAMU: {samu}</p>
-          <Image
-            src="/coin.png"
-            alt="Coin Icon"
-            width={60} // "SAMU" 크기와 비슷한 크기 (조정 가능)
-            height={60}
-            className="inline-block"
-          />
-        </div>
-      </div>
+      {/* 상단: 점수 및 Dojo Challenge 버튼 */}
+      <div className="w-full flex justify-center items-center mt-2 relative">
+        <p className="text-3xl font-bold text-yellow-300">SAMU: {samu}</p>
+        <Image src="/coin.png" alt="Coin Icon" width={40} height={40} className="ml-2" />
 
-      {/* 중앙: 큰 클릭 버튼 및 "+1" 텍스트 (놉코인 버튼 위치) */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full relative">
-        <button
-          onClick={handleClick}
-          disabled={isLoading || energy < 100}
-          style={{ zIndex: 10, border: 'none', background: 'none', padding: 0 }}
-        >
-          <Image
-            src="/click.png"
-            alt="Click Button"
-            width={300} // 모바일에 맞게 크기 조정 (필요하면 250~350으로 조정)
-            height={300}
-            className="hover:scale-102 transition-transform duration-200 active:scale-99"
-          />
-        </button>
-        {showPlusOne && (
-          <span
-            className="absolute text-xs text-yellow-300 opacity-50 animate-fade-out"
-            style={{ top: '-40px', left: '50%', transform: 'translateX(-50%)' }}
+        {/* Dojo Challenge 버튼 */}
+        <div className="absolute left-1 top-0 text-center">
+          <button 
+            onClick={startDojoChallenge} 
+            className="text-white font-bold text-xs leading-tight transition-transform hover:opacity-80 active:scale-95"
           >
-            +1
-          </span>
-        )}
-      </div>
-
-      {/* 하단: 에너지 및 메뉴 (놉코인 하단 위치, 패딩 고려) */}
-      <div className="w-full text-center py-2 text-yellow-300">
-        <div className="w-[80%] mx-auto h-6 bg-gray-300 rounded-full overflow-hidden mb-2 shadow-md">
-          <div
-            className="h-full bg-green-500 rounded-full transition-all duration-500"
-            style={{ width: `${(energy / maxEnergy) * 100}%` }}
-          ></div>
-        </div>
-        <p className="text-sm font-light text-yellow-300">Energy: {energy}/{maxEnergy}</p>
-        <div className="flex justify-around mt-2 text-gray-300 text-xs">
-          <button className="hover:text-yellow-300">Frns</button>
-          <button className="hover:text-yellow-300">Earn</button>
-          <button
-            className="hover:text-yellow-300"
-            onClick={handleBoost}
-            disabled={isLoading || energy < 200}
-          >
-            Boosts
+            <span className="text-lg">⚔️</span><br />Dojo<br />Challenge
           </button>
         </div>
       </div>
 
-      {isTelegram && (
-        <button
-          className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded absolute bottom-2 right-2 text-xs"
-          onClick={() => window.Telegram?.WebApp?.close()}
-          style={{ zIndex: 10 }}
+      {/* 중앙: 클릭 버튼 (🔥 클릭 효과 추가) */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full relative">
+        <button 
+          onClick={handleClick} 
+          className="transition-transform active:scale-95 relative"
         >
-          닫기
+          <Image
+            src={isRaidTime ? raidEnemy : "/click.png"} 
+            alt="Click Button"
+            width={250}
+            height={250}
+            className="hover:scale-102 transition-transform duration-200"
+          />
+          {/* 🔥 클릭했을 때 +1 / +2 애니메이션 (자연스럽게 보였다가 서서히 사라짐) */}
+          {showPlusOne && (
+            <span className="absolute text-lg text-yellow-300 font-bold top-[-30px] left-[50%] translate-x-[-50%] opacity-50 animate-fade-in-out">
+              {isRaidTime ? "+2" : "+1"}
+            </span>
+          )}
         </button>
-      )}
+      </div>
+
+      {/* 하단: 에너지 바 (🔥 위치 조정 - 살짝 위로 이동) */}
+      <div className="w-full text-center py-2 text-yellow-300 mb-6">
+        <div className="w-[80%] mx-auto h-6 bg-gray-300 rounded-full overflow-hidden mb-2 shadow-md">
+          <div className="h-full bg-green-500 rounded-full transition-all duration-500"
+               style={{ width: `${(energy / 8500) * 100}%` }}></div>
+        </div>
+        <p className="text-sm font-light text-yellow-300">Energy: {energy}/8500</p>
+      </div>
+
+      {/* 하단 메뉴 */}
+      <div className="absolute bottom-4 w-full flex justify-around text-white text-lg">
+        <button className="flex flex-col items-center">
+          <span className="text-xl">💪</span>
+          Upgrade
+        </button>
+        <button className="flex flex-col items-center">
+          <span className="text-xl">🏆</span>
+          Rank
+        </button>
+      </div>
     </main>
   );
 }
